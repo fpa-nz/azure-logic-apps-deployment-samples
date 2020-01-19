@@ -1,0 +1,41 @@
+variables: 
+  instanceCount: 1
+
+trigger:
+- master
+
+stages:
+- stage: Deployment
+  jobs:
+  - job: DeployAzureEnvironments
+    variables:
+      environment: d
+    pool: 
+      vmImage: 'vs2017-win2016'
+    steps:
+    - script: |
+        echo ##vso[task.setvariable variable=project]$(project)
+
+      name: SetDynamicVariableNames
+
+    - checkout: self
+      persistCredentials: true
+      clean: true
+      displayName: 'Checkout repository'
+
+    - powershell: |
+        git config --get remote.origin.url
+        git remote show origin
+        git config user.email "branch-creation@localhost"
+        git config user.name "Branch Creation"
+        git pull --progress -v --no-rebase "origin" "master"
+        git checkout -b test
+        git pull --progress -v --no-rebase "origin" "test"
+        git commit -a -m 'added test branch'
+        git push --set-upstream origin test
+        git checkout -b dev
+        git pull --progress -v --no-rebase "origin" "dev"
+        git commit -a -m 'added dev branch'
+        git push --set-upstream origin dev
+
+      displayName: Setup git branches
