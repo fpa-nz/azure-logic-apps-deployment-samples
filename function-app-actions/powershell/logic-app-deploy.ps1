@@ -2,23 +2,14 @@
     .SYNOPSIS
         Deploys a logic app to Azure, including the connections, definition, and separate Azure Resource Manager template.
 
-    .PARAMETER groupId
-        The value used for constructing resources in the resource group and identifies the resources that are used together in a specific solution
+    .PARAMETER project
+        The name of the project this deployment is for
 
     .PARAMETER location
         The region or location name to use for the resource group and the resources in that group
 
     .PARAMETER environment
         The alphabetical character that identifies the deployment environment to use in the name for each resource that's created in the resource group. For example, values include "d" for development, "t" for test, "s" for staging, and "p" for production.
-
-    .PARAMETER identifier
-        The value that's appended to the names for the resource group and logic app in that resource group. This value identifies the purpose or function for that group and logic app.
-
-    .PARAMETER abbrevLocationName
-        The abbreviated region name that's used in resource names due to character limitations on some resource types. Defaults to the "location" parameter value.
-
-    .PARAMETER deploymentName
-        The name used for the deployment. If not given, a GUID is assigned as the deployment name.
 
     .PARAMETER connectorsParametersFilePath
         The path to the parameters file for the connectors' Azure Resource Manager template. Defaults to the file in the local directory.
@@ -47,41 +38,29 @@
     .EXAMPLE
         Deploys a logic app to the "westus" region by using the default values.
 
-        ./logic-app-deploy.ps1 -groupId cse01 -location westus -environment d -identifier sample-sb-conn
+        ./logic-app-deploy.ps1 -project cse01 -location westus -environment dev -identifier sample-sb-conn
     .EXAMPLE
         Deploys six instances for a logic app to the "westus" region.
         
-        ./logic-app-deploy.ps1 -groupId cse02 -location westus -environment d -identifier sample-sb-conn -instanceCount 6
+        ./logic-app-deploy.ps1 -project cse02 -location westus -environment dev -identifier sample-sb-conn -instanceCount 6
     .EXAMPLE
         Deploys six instances for a logic app to the "northcentralus" region by using the "ncus" abbreviation.
         
-        ./logic-app-deploy.ps1 -groupId cse03 -location northcentralus -environment d -identifier sample-sb-conn -instanceCount 6 -abbrevLocationName ncus
+        ./logic-app-deploy.ps1 -project cse03 -location northcentralus -environment dev -identifier sample-sb-conn -instanceCount 6
 #>
 
 param(
     [Parameter(Mandatory = $True)]
     [string]
-    $groupId,
+    $project,
 
-    [Parameter(Mandatory = $True)]
+    [Parameter(Mandatory = $False)]
     [string]
-    $location,
+    $location = "australiaeast",
 
     [Parameter(Mandatory = $True)]
     [string]
     $environment,
-
-    [Parameter(Mandatory = $True)]
-    [string]
-    $identifier,
-
-    [Parameter(Mandatory = $False)]
-    [string]
-    $abbrevLocationName = $location,
-
-    [Parameter(Mandatory = $False)]
-    [string]
-    $deploymentName = [guid]::NewGuid(),
 
     [Parameter(Mandatory = $False)]
     [string]
@@ -180,10 +159,8 @@ Function Set-LogicAppDeployment {
     Set-ResourceGroup -resourceGroupName $resourceGroupName;
 
     $armParameters = @{
-        groupId      = $groupId
         environment  = $environment
         locationName = $abbrevLocationName
-        identifier   = $identifier
         instance     = $instance
     };
     
@@ -219,9 +196,9 @@ Function Get-ResourceGroupName {
     # That way, a single instance deployment isn't appended by an extra "-1", which adds confusion.
 
     if($instance -eq 1){
-        return "{0}{1}rgp{2}-{3}" -f $groupId, $environment, $location, $identifier
+        return "{0}-{1}" -f $project, $environment
     } else {
-        return "{0}{1}rgp{2}-{3}-{4}" -f $groupId, $environment, $location, $identifier, ($instance - 1)
+        return "{0}-{1}-{2}" -f $project, $environment, ($instance - 1)
     }
 }
 
@@ -240,10 +217,7 @@ Function Set-ResourceGroup {
     Write-Host "Checking whether the resource group exists"
     $resourceGroup = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue
     if (!$resourceGroup) {
-        Write-Host "Resource group '$resourceGroupName' does not exist. Creating new resource group";
-        
-        Write-Host "Creating resource group '$resourceGroupName' in location '$location'";
-        New-AzResourceGroup -Name $resourceGroupName -Location $location
+		throw "We have a problem. The Resource Group for this project doesn't exist. So I can't use it :¨("
     }
     else {
         Write-Host "Using existing resource group '$resourceGroupName'";

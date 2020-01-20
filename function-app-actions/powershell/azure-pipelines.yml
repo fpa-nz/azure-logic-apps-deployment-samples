@@ -1,11 +1,15 @@
+parameters:
+- name: project
+  type: string
+- name: location
+  type: string
+- name: environment
+  type: string
+
 variables: 
-  location: westus
-  groupId: cse01
-  abbrevLocationName: westus
   instanceCount: 1
   identifier: sample-function-app
   sampleDirectory: function-app-actions
-  sharedResourceGroupIdentifier: shared
 
 trigger:
 - master
@@ -48,60 +52,53 @@ stages:
       vmImage: 'windows-2019'
     steps:
     - script: |
-        echo ##vso[task.setvariable variable=resourceGroupName]$(groupId)$(environment)rgp$(location)-$(sharedResourceGroupIdentifier)
-        echo ##vso[task.setvariable variable=templateFilePath]$(Build.Repository.LocalPath)\$(sampleDirectory)\templates\shared-template.json
+        echo ##vso[task.setvariable variable=project]${{ project }}
+        echo ##vso[task.setvariable variable=location]${{ location }}
+        echo ##vso[task.setvariable variable=environment]${{ environment }}
         echo ##vso[task.setvariable variable=logicAppDeployScript]$(Build.Repository.LocalPath)\$(sampleDirectory)\powershell\logic-app-deploy.ps1
-        echo ##vso[task.setvariable variable=functionAppName]$(groupId)$(environment)fa$(abbrevLocationName)
-      name: setDynamicVariableNames
+
+      displayName: Set Dynamic Variable Names
+
     - powershell: |
-        Write-Host "templateFilePath: $(templateFilePath)"
-        Write-Host "resourceGroupName: $(resourceGroupName)"
-        Write-Host "logicAppDeployScript: $(logicAppDeployScript)"
-      name: printOutVariables
-    - task: AzureResourceGroupDeployment@2
-      name: SharedResourcesDeployment
-      inputs:
-        azureSubscription: 'Azure Samples Subscription'
-        action: 'Create Or Update Resource Group'
-        resourceGroupName: $(resourceGroupName)
-        location: $(location)
-        templateLocation: Linked artifact
-        csmFile: $(templateFilePath)
-        deploymentMode: 'Incremental'
-        deploymentName: $(Build.BuildNumber)
-        overrideParameters: -groupId $(groupId) -environment $(environment) -locationName $(abbrevLocationName)
+        Write-Host "Project: $(project)"
+        Write-Host "Location: $(location)"
+        Write-Host "LogicAppDeployScript: $(logicAppDeployScript)"
+
+      displayName: Display Dynamic Variable Names
+
     - task: DownloadPipelineArtifact@2
       displayName: Download Function App
       inputs:
         artifactName: function-app
+
     - task: AzureFunctionApp@1
       name: DeployFunctionApp
       inputs:
-        azureSubscription: 'Azure Samples Subscription'
+        azureSubscription: 'Azure-DevOps-${{ project }}-${{ environment }}'
         appType: 'functionApp'
         appName: $(functionAppName)
         package: '$(Pipeline.Workspace)/**/$(Build.BuildId).zip'
         deploymentMethod: 'auto'
+
     - script: |
         echo ##vso[task.setvariable variable=connectorsTemplateFilePath]$(Build.Repository.LocalPath)\$(sampleDirectory)\templates\connectors-template.json
         echo ##vso[task.setvariable variable=logicAppTemplateFilePath]$(Build.Repository.LocalPath)\$(sampleDirectory)\templates\logic-app-template.json
         echo ##vso[task.setvariable variable=logicAppDefinitionPath]$(Build.Repository.LocalPath)\$(sampleDirectory)\templates\logic-app-definition.json
         echo ##vso[task.setvariable variable=logicAppDefinitionParametersFilePath]$(Build.Repository.LocalPath)\$(sampleDirectory)\templates\logic-app-definition-parameters.json
+
     - task: AzurePowerShell@4
       name: DeployLogicAppSample
       inputs:
-        azureSubscription: 'Azure Samples Subscription'
+        azureSubscription: 'Azure-DevOps-${{ project }}-${{ environment }}'
         ScriptType: 'FilePath'
         ScriptPath: '$(logicAppDeployScript)'
         FailOnStandardError: true
         azurePowerShellVersion: LatestVersion
         ScriptArguments: >-
-          -groupId $(groupId) 
           -location $(location) 
-          -abbrevLocationName $(abbrevLocationName) 
+          -project $(project) 
           -environment $(environment) 
           -instanceCount $(instanceCount) 
-          -identifier $(identifier) 
           -connectorsTemplateFilePath $(connectorsTemplateFilePath) 
           -logicAppTemplateFilePath $(logicAppTemplateFilePath) 
           -logicAppDefinitionPath $(logicAppDefinitionPath) 
