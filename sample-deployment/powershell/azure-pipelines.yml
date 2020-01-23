@@ -29,6 +29,9 @@ stages:
 
       displayName: Display Dynamic Variable Names
 
+    - script: Remove-AzResourceLock -LockId ((Get-AzResourceLock -ResouceGroupName $(resourceGroupName)).LockId)
+      displayName: Removing Lock on Resource Group
+
     - task: AzurePowerShell@4
       displayName: Execute Deployment Script
       inputs:
@@ -41,3 +44,6 @@ stages:
           -location $(location) 
           -project $(system.teamProject) 
           -environment $(environment)
+
+    - script: New-AzResourceLock -LockName Locked - LockLevel CanNotDelete -ResouceGroupName $(resourceGroupName)
+      displayName: Locking Resource Group
