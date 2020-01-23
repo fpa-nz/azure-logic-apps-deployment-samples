@@ -36,7 +36,7 @@ Function Get-ResourceGroupName {
         .SYNOPSIS
             Return the resource group name for the instance number that's passed as input.
     #>
-        return "{0}-{1}" -f $project, $environment
+        return ("{0}-{1}" -f $project, $environment) -replace "[^A-Za-z-0-9]", "-"
 }
 
 Function Check-ResourceGroup {
