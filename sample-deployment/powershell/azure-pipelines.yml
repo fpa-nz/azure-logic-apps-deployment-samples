@@ -54,11 +54,12 @@ stages:
           -environment $(environment)
 
     - task: AzurePowerShell@4
-      displayName: Removing Lock on Resource Group
+      displayName: Locking Resource Group
+      condition: always()
       inputs:
         azureSubscription: 'Azure-DevOps-$(system.teamProject)-$(environment)'
         ScriptType: 'inlineScript'
-        inline: New-AzResourceLock -LockName Locked - LockLevel CanNotDelete -ResourceGroupName $(resourceGroupName) -Force
+        inline: New-AzResourceLock -LockName Locked -LockLevel CanNotDelete -ResourceGroupName $(resourceGroupName) -Force
         FailOnStandardError: true
         azurePowerShellVersion: LatestVersion
       env:

@@ -71,7 +71,8 @@ $resourceGroupName = Get-ResourceGroupName
 
 Check-ResourceGroup -resourceGroupName $resourceGroupName;
 
-$storageAccountName = "$($project)st$($environment)".ToLower() -replace "[^A-Za-z-0-9]", ""
+$storageAccountName = "$($project)st$($environment)"
+$storageAccountName = $storageAccountName.ToLower() -replace "[^A-Za-z0-9]", ""
 Write-Host "Using storage account name $($storageAccountName)"
 
 $storageAccount = New-AzStorageAccount -Name $storageAccountName -ResourceGroupName $resourceGroupName -Location $location  -SkuName Standard_LRS  -Kind StorageV2
