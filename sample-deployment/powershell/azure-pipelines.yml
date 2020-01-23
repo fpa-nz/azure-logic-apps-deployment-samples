@@ -13,8 +13,8 @@ stages:
       demands: azureps
     steps:
     - script: |
-        echo ##vso[task.setvariable variable=resourceGroupName]$(system.teamProject)-$(environment)
-        echo ##vso[task.setvariable variable=project]$(system.teamProject)
+        echo ##vso[task.setvariable variable=resourceGroupName]$(project)-$(environment)
+        echo ##vso[task.setvariable variable=project]$(project)
         echo ##vso[task.setvariable variable=location]$(location)
         echo ##vso[task.setvariable variable=environment]$(environment)
         echo ##vso[task.setvariable variable=deployScript]$(Build.Repository.LocalPath)\$(sampleDirectory)\powershell\bare-test.ps1
@@ -29,8 +29,16 @@ stages:
 
       displayName: Display Dynamic Variable Names
 
-    - script: Remove-AzResourceLock -LockId ((Get-AzResourceLock -ResouceGroupName $(resourceGroupName)).LockId)
+    - task: AzurePowerShell@4
       displayName: Removing Lock on Resource Group
+      inputs:
+        azureSubscription: 'Azure-DevOps-$(system.teamProject)-$(environment)'
+        ScriptType: 'inlineScript'
+        inline: Remove-AzResourceLock -LockId ((Get-AzResourceLock -ResourceGroupName $(resourceGroupName)).LockId) -Force
+        FailOnStandardError: true
+        azurePowerShellVersion: LatestVersion
+      env:
+        AZURE_DEVOPS_CLI_PAT: $(System.AccessToken)
 
     - task: AzurePowerShell@4
       displayName: Execute Deployment Script
@@ -42,8 +50,16 @@ stages:
         azurePowerShellVersion: LatestVersion
         ScriptArguments: >-
           -location $(location) 
-          -project $(system.teamProject) 
+          -project $(project) 
           -environment $(environment)
 
-    - script: New-AzResourceLock -LockName Locked - LockLevel CanNotDelete -ResouceGroupName $(resourceGroupName)
-      displayName: Locking Resource Group
+    - task: AzurePowerShell@4
+      displayName: Removing Lock on Resource Group
+      inputs:
+        azureSubscription: 'Azure-DevOps-$(system.teamProject)-$(environment)'
+        ScriptType: 'inlineScript'
+        inline: New-AzResourceLock -LockName Locked - LockLevel CanNotDelete -ResourceGroupName $(resourceGroupName) -Force
+        FailOnStandardError: true
+        azurePowerShellVersion: LatestVersion
+      env:
+        AZURE_DEVOPS_CLI_PAT: $(System.AccessToken)
